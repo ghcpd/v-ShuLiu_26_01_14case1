@@ -1,0 +1,124 @@
+User: # Agent Tool Hook Enhancement Task
+
+## Context and Baseline
+
+This repository contains a tiny, repetitive implementation of an
+"agent tool hook" layer. The baseline is functionally correct but awkward and
+hard to extend. Your goal is to enhance the design without changing
+externally observable behavior.
+
+The baseline implementation lives in a single read‑only file:
+
+- `agent_tools_hook_origin.py`
+
+You must not edit, rename, move, or delete this file. All enhancements must be
+implemented in **new files** that build on top of the existing functions.
+
+The baseline defines three functions:
+
+- `call_tool_a(tool, name, args) -> dict`
+- `call_tool_b(tool, name, args) -> dict`
+- `run_all(tools, names, payloads) -> list[dict]`
+
+Each `call_tool_*` function takes a callable tool plus some metadata and
+returns a plain dictionary with `tool_name`, `status`, `error`, `args`,
+`output`, and a list of log strings. The two functions only differ in log
+messages. `run_all` alternates between them.
+
+The baseline is **correct but crude**: it returns loosely structured
+dictionaries that are hard to rely on and extend.
+
+## Pain Points and Motivation
+
+This hook layer is a typical "Enhancement" target:
+
+- Heavy copy‑paste between `call_tool_a` and `call_tool_b`.
+- Result shape is only informally described.
+- Logging is an unstructured list of strings.
+- Orchestration and low‑level call details are mixed.
+
+You must introduce a clearer, more modular design that keeps observable
+behavior compatible while making the code easier to reason about, extend, and
+test.
+
+## Non‑Negotiable Constraints
+
+You must respect the following constraints:
+
+1. **Baseline file is read‑only.** `agent_tools_hook_origin.py` must not be
+  modified. New behavior must live in new modules or packages (for example,
+  `agent_tools_hook.py`, `agent_hooks/runner.py`, etc.).
+2. **Observable behavior must stay compatible.** For the same input tools,
+   names, and payloads, your enhanced orchestration should:
+   - Call the underlying tools the same number of times and in the same
+     order.
+   - Produce results whose core fields (`tool_name`, `status`, `error`,
+     `args`, `output`, `logs`) are semantically equivalent to the baseline,
+     including the sequence of log messages.
+   - Preserve success vs error classification and error messages.
+3. **You may add structure but not remove meaning.** You may wrap the
+  dictionaries in dataclasses or other types, or enrich logs (for example
+  with timestamps), as long as the original dictionary plus log strings can
+  still be recovered exactly.
+4. **Only add files.** Do not change or delete the baseline file. New
+  abstractions and public APIs must live in new modules.
+5. **No hard‑coded shortcuts.** Do not special‑case individual tools or names
+  in ways that break generality; the framework should work for any callable
+  that matches the expected interface.
+6. **Windows and standard library only.** All code must run on Windows 10+
+  with Python 3.8+ and may only use the standard library (plus optional
+  `pytest`).
+7. **Unified test entry.** The root of this case contains `run_tests.py`. It
+  is the **only** supported way to run automated tests and is read‑only.
+8. **Automatic test discovery.** All tests must live under a `tests/`
+  directory and be discoverable automatically by `run_tests.py`.
+9. **pytest preferred, unittest fallback.** `run_tests.py` first tries to use
+  `pytest` and falls back to `unittest` discovery if `pytest` is not
+  available. Your tests must pass in both modes.
+10. **Exit codes reflect test results.** When all tests pass, `run_tests.py`
+  must exit with code 0. Any failure or error must produce a non‑zero
+  exit code.
+11. **No custom PASS banners.** Do not add custom "PASS" / "All tests passed"
+    style success messages in the test entry or helpers. Rely on the default
+    reporting of the test framework.
+
+## High‑Level Tasks
+
+Focus on high‑level design instead of a step‑by‑step checklist. In particular,
+you should:
+
+- Introduce clear types or structures to represent tool invocations, results
+  and logs.
+- Centralize the common logic for calling tools, handling exceptions and
+  collecting logs into a reusable component.
+- Expose a small, well‑defined orchestration API that tests and other modules
+  can call, without changing baseline semantics.
+
+## Deliverables
+
+By the end of this task, the repository should contain at least:
+
+- An enhanced hook implementation (for example, `agent_tools_hook.py` or a
+  small `agent_hooks/` package) that exposes a clear public API for invoking
+  tools.
+- Automated tests under `tests/` that compare baseline functions in
+  `agent_tools_hook_origin.py` with your enhanced API, check that core fields
+  stay equivalent, and verify that structured representations can be converted
+  back into the baseline dictionary format.
+- A short `README` that describes the baseline pain points, your enhanced
+  architecture, and how to run all tests on Windows using `python run_tests.py`.
+
+## Output Requirements
+
+In your final answer for this task, you should:
+
+- Summarize the main new modules, packages and types you introduced, with a
+  short description for each.
+- Describe the primary public API of your enhanced hook layer, with a brief
+  example of how to call it.
+- Explain how to run the tests from the repository root (for example,
+  `python run_tests.py`) and how the exit code indicates success or failure.
+
+You do **not** need to print special success labels such as
+"Tests passed: X/Y". The primary indicator of success is that `run_tests.py`
+finishes with exit code 0 and the test framework reports no failures.
