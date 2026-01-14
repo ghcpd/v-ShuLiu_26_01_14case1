@@ -1,0 +1,144 @@
+**Role & Objective**
+You are an expert Python engineer and software architect. In a single interaction, enhance an existing "agent tool hook" layer in a small Python repository. Your objective is to introduce a clearer, more modular, and extensible design for tool invocation and orchestration, without changing any externally observable behavior of the existing baseline implementation.
+
+**Inputs & Context**
+- You are working in a Python repository that currently contains a baseline implementation of an agent tool hook layer in a single read-only file named `agent_tools_hook_origin.py`.
+- The baseline defines three functions:
+  - `call_tool_a(tool, name, args) -> dict`
+  - `call_tool_b(tool, name, args) -> dict`
+  - `run_all(tools, names, payloads) -> list[dict]`
+- Each `call_tool_*` function:
+  - Accepts a callable `tool`, a string `name`, and a dictionary `args`.
+  - Calls the tool directly using the provided arguments.
+  - Returns a plain dictionary with the following keys:
+    - `tool_name`
+    - `status`
+    - `error`
+    - `args`
+    - `output`
+    - `logs` (a list of log message strings)
+- The only differences between `call_tool_a` and `call_tool_b` are in their log message text.
+- `run_all(tools, names, payloads)`:
+  - Zips the three lists `tools`, `names`, and `payloads`.
+  - Iterates in order.
+  - Alternates between using `call_tool_a` for even indices and `call_tool_b` for odd indices.
+- The baseline behavior is correct but crude, using loosely structured dictionaries and unstructured logging.
+
+**Step-by-Step Instructions**
+1. **Understand and Respect the Baseline**
+   - Inspect `agent_tools_hook_origin.py` and fully understand the behavior of `call_tool_a`, `call_tool_b`, and `run_all`.
+   - Treat this file as strictly read-only: do not edit, rename, move, or delete it.
+   - Carefully note:
+     - The exact number and order of tool invocations.
+     - The exact shape of returned dictionaries and field meanings.
+     - The exact log messages and their order for both success and error paths.
+
+2. **Design Structured Types for the Hook Layer**
+   - Define clear, typed structures (e.g., Python `@dataclass` types) in new files to represent:
+     - A tool invocation request (tool reference, name, args).
+     - A tool invocation result (tool name, status, error, args, output, logs).
+     - Any structured representation of log entries, if helpful (you may still store logs as strings as long as they can reproduce the original messages exactly).
+   - Ensure these types are rich enough that you can always reconstruct the original baseline result dictionary and its `logs` list exactly, including message content and order.
+
+3. **Centralize Tool Invocation Logic**
+   - Implement a reusable component (for example, a `ToolCaller` class or equivalent) in a new module that:
+     - Accepts a tool callable, its name, and an args dictionary.
+     - Handles:
+       - Building an initial result structure.
+       - Emitting the appropriate start log.
+       - Invoking the tool with the provided arguments.
+       - Catching exceptions and setting `status`, `error`, `output`, and log messages accordingly.
+     - Produces a structured result instance that can be converted back into the baseline dictionary format.
+   - Introduce a pluggable mechanism (for example, a strategy object, policy, or configuration) to vary log message templates so that `call_tool_a` and `call_tool_b` can share core logic but still yield their distinct log strings.
+
+4. **Implement Enhanced `call_tool_*` APIs**
+   - In a new module or package (e.g., `agent_tools_hook.py` or a small `agent_hooks/` package), re-implement public functions with the same signatures:
+     - `call_tool_a(tool, name, args) -> dict`
+     - `call_tool_b(tool, name, args) -> dict`
+   - Each of these functions must:
+     - Use the centralized invocation component with the appropriate logging strategy so that:
+       - Tool invocation count and order are identical to the baseline.
+       - Success vs. error classification and error message strings are identical to the baseline.
+       - The returned dictionary contains the same keys and semantically equivalent values as the baseline, including the `logs` list with the same messages and order.
+   - Ensure that any user of these functions who previously depended on the baseline behavior sees no change in externally observable results for the same inputs.
+
+5. **Implement Enhanced Orchestration**
+   - Implement a higher-level orchestrator (e.g., a `ToolOrchestrator` class or equivalent) in the new module/package that:
+     - Accepts lists of tools, names, and payloads in the same way as the baseline.
+     - Provides a method that reproduces the baseline `run_all` behavior by:
+       - Zipping the three lists.
+       - Iterating in order.
+       - Alternating between the two logging/behavior strategies in the same even/odd pattern used by the baseline `run_all`.
+   - Implement a top-level `run_all(tools, names, payloads) -> list[dict]` function in the new module that:
+     - Uses this orchestrator.
+     - Returns a list of dictionaries whose fields and semantics match the baseline `run_all` output for the same inputs.
+
+6. **Preserve and Extend Semantics Without Shortcuts**
+   - Do not hard-code any special behavior for specific tool names or specific tools; your framework must work for any callable with the expected signature.
+   - You may enrich internal structures (e.g., add timestamps or metadata to logs) as long as you can always reconstruct the exact original list of log strings for external outputs.
+   - Ensure success vs error classification rules and error message propagation remain unchanged from the baseline.
+
+7. **Add Tests Comparing Baseline and Enhanced APIs**
+   - Under a `tests/` directory, create test modules discoverable by both `pytest` and `unittest`.
+   - Write tests that:
+     - Call `call_tool_a`, `call_tool_b`, and `run_all` from `agent_tools_hook_origin.py` (baseline) and from your enhanced module using identical tools, names, and payloads.
+     - Assert that for each call, the core result fields (`tool_name`, `status`, `error`, `args`, `output`, `logs`) from the enhanced API are equal to or semantically equivalent to the baseline, including the exact sequence and content of log messages.
+     - Verify that any structured representations you introduce (e.g., dataclasses for results) can be converted back to the baseline dictionary format without loss of information.
+   - Ensure that `run_tests.py` at the repository root (provided and read-only) discovers and runs your tests successfully using:
+     - `pytest` when available, or
+     - `unittest` discovery as a fallback.
+
+8. **Document the Enhanced Architecture**
+   - Create a short `README.md` in the repository root that:
+     - Describes the baseline pain points (copy-paste between `call_tool_a` and `call_tool_b`, unstructured results, mixed concerns, and unstructured logging).
+     - Explains your enhanced architecture: new modules/packages, main classes or functions, and how they interact.
+     - Shows how to invoke the enhanced public API (e.g., `call_tool_a`, `call_tool_b`, `run_all`, and any orchestrator or caller classes you expose) with minimal code examples.
+     - Clearly explains how to run all tests on Windows using `python run_tests.py` and how to interpret the exit code (0 for all tests passing; non-zero for any failure or error).
+
+**Output Specification**
+- New files and structures:
+  - One or more new Python modules or a small package (e.g., `agent_tools_hook.py` or `agent_hooks/`) containing:
+    - Typed structures for invocations, results, and logging.
+    - A centralized tool invocation component.
+    - Logging strategies or equivalent mechanisms for `call_tool_a` and `call_tool_b`.
+    - An orchestrator that reproduces `run_all` behavior.
+    - Public functions `call_tool_a`, `call_tool_b`, and `run_all` with signatures and external behavior matching the baseline.
+  - A `tests/` directory containing automated tests that:
+    - Compare baseline and enhanced outputs for all three main functions.
+    - Validate that structured representations can be fully converted back to the baseline dictionary format.
+  - A `README.md` summarizing baseline issues, the new architecture, and test execution instructions.
+- All code must:
+  - Be valid Python 3.8+.
+  - Use only the Python standard library (plus optional `pytest` for tests).
+  - Run correctly on Windows 10+.
+- `run_tests.py` must:
+  - Remain unchanged and be the only supported test entry point.
+  - Exit with code 0 when all tests pass, and a non-zero code on any failure or error.
+
+**Constraints & Preferences**
+- **Do not modify** `agent_tools_hook_origin.py` or `run_tests.py`.
+- Only **add** new modules, packages, and tests; do not delete or rename existing baseline files.
+- Maintain full backward compatibility:
+  - Same number and order of tool calls for given inputs.
+  - Same success/error classification and error messages.
+  - Same core result fields and equivalent values, including log message sequences.
+- Use clear, typed, and modular designs that separate:
+  - Tool invocation logic.
+  - Error handling.
+  - Logging behavior.
+  - Orchestration logic.
+- Do not rely on external dependencies beyond the Python standard library and optional `pytest`.
+- Avoid vague or open-ended behavior; each function should have deterministic and testable semantics.
+
+**Quality Gates**
+- Before considering the task complete, verify that:
+  - All tests in `tests/` pass when run via `python run_tests.py`.
+  - The enhanced `call_tool_a`, `call_tool_b`, and `run_all` produce results that are equal to or semantically indistinguishable from the baseline for representative tools, names, and payloads, including both success and error cases.
+  - The structured representations can be converted back into the original dictionary format without any loss of information.
+  - The `README.md` clearly explains the baseline problems, the new architecture, the main public API, and how to run tests.
+
+**Critical Compliance Instructions (Most Important)**
+- Do not edit, rename, move, or delete `agent_tools_hook_origin.py`.
+- Do not change the external behavior of `call_tool_a`, `call_tool_b`, or `run_all`; only refactor via new modules and types while preserving observable semantics.
+- Ensure all new code uses only the Python standard library (plus optional `pytest` for tests) and runs on Windows 10+ with Python 3.8+.
+- Ensure that `python run_tests.py` is the unified, successful entry point, exiting with code 0 only when all tests pass and non-zero when any failure occurs.
