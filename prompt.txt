@@ -1,0 +1,148 @@
+# Legacy Analytics Dependency Maintenance Task
+
+## Overview
+
+You are given a small Python analytics project whose business logic is
+still correct but whose environment is outdated and hard to reproduce.
+Your task is to modernize dependencies and basic automation while
+**preserving the existing analytics behavior**.
+
+This is a **Task / maintenance** problem, not feature development. Focus
+on dependency upgrades, environment reproducibility, and a simple test
+workflow, without changing how numbers are calculated.
+
+---
+
+## Initial Repository State
+
+The repository root contains:
+
+```
+legacy_analytics/
+      __init__.py
+      analytics_legacy.py
+run_legacy_tests.py
+requirements_legacy.txt
+```
+
+- `legacy_analytics/analytics_legacy.py` implements CSV-based
+   statistics (mean, median, standard deviation). Its logic is considered
+   **semantically correct** and should be preserved.
+- `requirements_legacy.txt` pins intentionally outdated versions of
+   scientific libraries (for example `pandas`, `numpy`) that may not
+   install cleanly on modern Python 3.8+.
+- `run_legacy_tests.py` is a tiny smoke-test script that imports the
+   analytics module and runs a few hard-coded checks. It does **not** use
+   pytest or coverage and is not integrated with any virtual environment.
+
+This is a typical internal tool that "still works on someone's
+machine" but is not easy to set up from scratch.
+
+---
+
+## Constraints
+
+You **must** follow these rules:
+
+1. **Preserve analytics semantics**
+    - For the same input data, mean / median / standard deviation results
+       must remain the same after your changes.
+    - Any unexplained differences in numerical results or rounding should
+       be treated as bugs.
+
+2. **Respect module layout**
+    - `legacy_analytics/analytics_legacy.py` defines the baseline
+       behavior. You may add new modules or wrappers, but you must not
+       delete this file and it must remain importable for existing callers.
+
+3. **Modern environment and dependencies**
+    - Provide a new dependency file (for example `requirements.txt`) with
+       modern, installable versions of required libraries.
+    - Assume a clean Windows 10+ / Python 3.8+ environment with no
+       pre-installed scientific packages.
+
+4. **Unified test entry point**
+    - Expose a single test entry script at the root (for example
+       `run_tests.py`) that:
+       - Tries to import `pytest` and, if available, uses pytest default
+          discovery to run all tests under `tests/`.
+       - Falls back to Python `unittest` discovery if pytest cannot be
+          imported.
+       - Exits with code `0` only if all tests pass; otherwise exits with
+          a non-zero code.
+    - The script must work via `python run_tests.py` on Windows and must
+       not rely on Linux-specific shell features.
+
+5. **Limited external dependencies**
+    - Besides scientific and testing libraries explicitly listed in your
+       dependency files (for example pandas, numpy, pytest), rely only on
+       the Python standard library.
+
+---
+
+## Your Tasks (High Level)
+
+Design a small but coherent maintenance plan. At minimum, you must:
+
+1. **Stabilize and modernize dependencies**
+    - Inspect `requirements_legacy.txt` and infer suitable modern
+       versions that keep analytics behavior intact.
+    - Create a new dependency file (for example `requirements.txt`) that
+       installs cleanly on Python 3.8+.
+    - Describe how to create and activate a virtual environment on
+       Windows and how to install these dependencies.
+
+2. **Introduce basic automated tests**
+    - Create a `tests/` directory and move or wrap the checks from
+       `run_legacy_tests.py` into one or more proper test files.
+    - Ensure tests cover key observable behaviors (for example, results
+       for a small in-memory dataset or a sample CSV file in the repo).
+
+3. **Provide the unified test entry script**
+    - Implement `run_tests.py` (or similar) at the repository root, using
+       the pytest/unittest fallback behavior described above and
+       propagating the real framework exit code.
+
+4. **Document the maintenance work**
+    - Update or create `README.md` to explain:
+       - What the project does in business terms.
+       - How to set up a virtual environment and install dependencies on
+          Windows.
+       - How to run tests via the unified test entry script.
+       - Any important notes about dependency versions.
+
+---
+
+## Deliverables
+
+By the end of the task, the repository should include at least:
+
+- The original `legacy_analytics/analytics_legacy.py` module (unchanged
+   in semantics).
+- A new dependency file (for example `requirements.txt`) suitable for
+   setting up the environment.
+- A `tests/` directory with automated tests that exercise the analytics
+   behavior.
+- A single test entry script at the project root (for example
+   `run_tests.py`) that:
+   - Uses pytest when available and falls back to unittest otherwise.
+   - Discovers and runs all tests under `tests/`.
+   - Returns exit code `0` only when all tests pass.
+- A `README.md` documenting installation, testing, and project purpose.
+
+You do **not** need to build a full CI pipeline, but your changes should
+make it easy to plug this project into CI by calling the unified test
+entry script.
+
+## Output Requirements
+
+In your final answer, you should:
+
+- List the key files you added or modified (for example: new dependency
+   file, new tests, new runner script).
+- Briefly explain how your changes preserve the original analytics
+   semantics while improving maintainability.
+- Provide the exact command a user should run on Windows to execute
+   tests via the unified test entry script, **actually run that command**
+   in your environment, and state whether tests passed or which failures
+   occurred.
